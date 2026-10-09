@@ -11,8 +11,14 @@ from idtag_push.socket_server import SocketServer
 async def test_socket_protocol_accepts_authenticated_json_line():
     expected_id = uuid4()
 
-    async def enqueue(card_number, title, body, data):
-        assert (card_number, title, body, data) == ("C001", "Hello", "World", {"screen": "home"})
+    async def enqueue(community_code, card_number, title, body, data):
+        assert (community_code, card_number, title, body, data) == (
+            "NORTH_01",
+            "C001",
+            "Hello",
+            "World",
+            {"screen": "home"},
+        )
         return expected_id, 2
 
     server = SocketServer("127.0.0.1", 0, "s" * 16, enqueue)
@@ -21,6 +27,7 @@ async def test_socket_protocol_accepts_authenticated_json_line():
     reader, writer = await asyncio.open_connection("127.0.0.1", port)
     request = {
         "secret": "s" * 16,
+        "community_code": "NORTH_01",
         "card_number": "C001",
         "title": "Hello",
         "body": "World",

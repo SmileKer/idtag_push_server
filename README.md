@@ -1,6 +1,6 @@
 # IDTag Push Service
 
-Python service for registering IDTag mobile devices and delivering card-targeted notifications through Apple Push Notification service (APNs) and Firebase Cloud Messaging (FCM).
+Python service for registering IDTag mobile devices and delivering community-and-card-targeted notifications through Apple Push Notification service (APNs) and Firebase Cloud Messaging (FCM).
 
 ## Architecture
 
@@ -24,7 +24,7 @@ Register or refresh a device token:
 curl -X POST http://127.0.0.1:7004/v1/devices \
   -H 'Content-Type: application/json' \
   -H 'X-API-Key: YOUR_API_KEY' \
-  -d '{"card_number":"A123456","platform":"android","push_token":"TOKEN_FROM_FCM"}'
+  -d '{"community_code":"NORTH_01","card_number":"A123456","platform":"android","push_token":"TOKEN_FROM_FCM"}'
 ```
 
 The same token can be registered repeatedly. The operation updates its card number and `last_seen_at`. The app should call it after login and whenever the push SDK refreshes the token.
@@ -44,7 +44,7 @@ Internal HTTP submission:
 curl -X POST http://127.0.0.1:7004/v1/push \
   -H 'Content-Type: application/json' \
   -H 'X-API-Key: YOUR_API_KEY' \
-  -d '{"card_number":"A123456","title":"Package arrived","body":"Please collect it at reception","data":{"screen":"packages"}}'
+  -d '{"community_code":"NORTH_01","card_number":"A123456","title":"Package arrived","body":"Please collect it at reception","data":{"screen":"packages"}}'
 ```
 
 ## TCP socket protocol
@@ -54,7 +54,7 @@ The socket uses UTF-8 JSON, exactly one object per line. Each connection may sen
 Request:
 
 ```json
-{"secret":"YOUR_SOCKET_SECRET","card_number":"A123456","title":"Package arrived","body":"Please collect it","data":{"screen":"packages"}}
+{"secret":"YOUR_SOCKET_SECRET","community_code":"NORTH_01","card_number":"A123456","title":"Package arrived","body":"Please collect it","data":{"screen":"packages"}}
 ```
 
 Successful queue response:
@@ -63,7 +63,7 @@ Successful queue response:
 {"ok":true,"notification_id":"5c5ae3b9-7a26-45bd-a609-79106d1323fb","target_count":2}
 ```
 
-Test with `python scripts/socket_client.py --secret ... --card A123456 --title Test --body Hello`.
+Test with `python scripts/socket_client.py --secret ... --community NORTH_01 --card A123456 --title Test --body Hello`.
 
 The production socket listens on port 7002. It uses plain TCP; the shared secret
 authenticates requests but does not encrypt traffic. Restrict source addresses
@@ -149,7 +149,7 @@ Never commit `.p8`, service-account JSON, `.env`, or production secrets.
 
 The `idtage_online_version` Flutter app includes Firebase Core and Firebase
 Messaging, notification permission handling, foreground/background handlers,
-token refresh registration, saved-card association, Android notification channel
+token refresh registration, saved community-and-card association, Android notification channel
 setup, and iOS push capabilities. Its production registration endpoint is
 `http://211.23.22.158:7004`.
 

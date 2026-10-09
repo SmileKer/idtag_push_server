@@ -16,6 +16,7 @@ DEFAULTS = {
     "host": "211.23.22.158",
     "port": 7002,
     "secret": "",
+    "community_code": "LEGACY",
     "card_number": "AACC0102030405",
     "title": "iTag 推播測試",
     "body": "這是一則從本機測試工具送出的推播通知。",
@@ -82,6 +83,8 @@ HTML = r"""<!doctype html>
     <section class="card">
       <div id="connection" class="connection"><span class="dot"></span><span>正在檢查連線…</span></div>
       <form id="pushForm">
+        <label for="communityCode">社區代號</label>
+        <input id="communityCode" name="community_code" autocomplete="off" required>
         <label for="cardNumber">卡號</label>
         <input id="cardNumber" name="card_number" autocomplete="off" required>
         <label for="title">推播標題</label>
@@ -103,6 +106,7 @@ HTML = r"""<!doctype html>
     async function loadConfig() {
       const response = await fetch('/api/config');
       const config = await response.json();
+      document.getElementById('communityCode').value = config.community_code || '';
       document.getElementById('cardNumber').value = config.card_number || '';
       document.getElementById('title').value = config.title || '';
       document.getElementById('body').value = config.body || '';
@@ -174,9 +178,9 @@ def save_config(config):
     CONFIG_PATH.chmod(0o600)
 
 
-def send_push(host, port, secret, card_number, title, body):
+def send_push(host, port, secret, community_code, card_number, title, body):
     payload = {
-        "secret": secret, "card_number": card_number,
+        "secret": secret, "community_code": community_code, "card_number": card_number,
         "title": title, "body": body, "data": {},
     }
     encoded = json.dumps(payload, ensure_ascii=False).encode("utf-8") + b"\n"
@@ -219,7 +223,10 @@ class PushUIHandler(BaseHTTPRequestHandler):
             return
         if self.path == "/api/config":
             config = load_config()
-            self._send_json(200, {key: config[key] for key in ("card_number", "title", "body")})
+            self._send_json(
+                200,
+                {key: config[key] for key in ("community_code", "card_number", "title", "body")},
+            )
             return
         if self.path == "/api/status":
             config = load_config()
@@ -243,16 +250,24 @@ class PushUIHandler(BaseHTTPRequestHandler):
                 raise ValueError("請求內容大小錯誤")
             values = json.loads(self.rfile.read(length).decode("utf-8"))
             config = load_config()
+            community_code = str(values.get("community_code", "")).strip().upper()
             card_number = str(values.get("card_number", "")).strip().upper()
             title = str(values.get("title", "")).strip()
             body = str(values.get("body", "")).strip()
-            if not card_number or not title or not body:
-                raise ValueError("卡號、標題與內容都必須填寫")
-            config.update({"card_number": card_number, "title": title, "body": body})
+            if not community_code or not card_number or not title or not body:
+                raise ValueError("社區代號、卡號、標題與內容都必須填寫")
+            config.update(
+                {
+                    "community_code": community_code,
+                    "card_number": card_number,
+                    "title": title,
+                    "body": body,
+                }
+            )
             save_config(config)
             response = send_push(
                 str(config["host"]), int(config["port"]), str(config["secret"]),
-                card_number, title, body,
+                community_code, card_number, title, body,
             )
             self._send_json(200, response)
         except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as error:

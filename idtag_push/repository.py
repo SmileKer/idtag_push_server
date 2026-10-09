@@ -28,19 +28,22 @@ class Repository:
     def __init__(self, pool: asyncpg.Pool) -> None:
         self.pool = pool
 
-    async def register_device(self, card_number: str, platform: str, token: str) -> UUID:
+    async def register_device(
+        self, community_code: str, card_number: str, platform: str, token: str
+    ) -> UUID:
         row = await self.pool.fetchrow(
             """
-            INSERT INTO devices (card_number, platform, push_token)
-            VALUES ($1, $2, $3)
+            INSERT INTO devices (community_code, card_number, platform, push_token)
+            VALUES ($1, $2, $3, $4)
             ON CONFLICT (platform, push_token) DO UPDATE SET
+                community_code = EXCLUDED.community_code,
                 card_number = EXCLUDED.card_number,
                 active = TRUE,
                 updated_at = NOW(),
                 last_seen_at = NOW()
             RETURNING id
             """,
-            card_number, platform, token,
+            community_code, card_number, platform, token,
         )
         return row["id"]
 
@@ -51,29 +54,35 @@ class Repository:
         return result != "DELETE 0"
 
     async def enqueue(
-        self, card_number: str, title: str, body: str, data: dict[str, Any]
+        self,
+        community_code: str,
+        card_number: str,
+        title: str,
+        body: str,
+        data: dict[str, Any],
     ) -> tuple[UUID, int]:
         async with self.pool.acquire() as connection:
             async with connection.transaction():
                 notification_id = await connection.fetchval(
                     """
-                    INSERT INTO notifications (card_number, title, body, data)
-                    VALUES ($1, $2, $3, $4::jsonb) RETURNING id
+                    INSERT INTO notifications (community_code, card_number, title, body, data)
+                    VALUES ($1, $2, $3, $4, $5::jsonb) RETURNING id
                     """,
-                    card_number, title, body, json.dumps(data),
+                    community_code, card_number, title, body, json.dumps(data),
                 )
                 result = await connection.execute(
                     """
                     INSERT INTO deliveries (notification_id, device_id, platform, token_snapshot)
                     SELECT $1, id, platform, push_token
-                    FROM devices WHERE card_number = $2 AND active = TRUE
+                    FROM devices
+                    WHERE community_code = $2 AND card_number = $3 AND active = TRUE
                     """,
-                    notification_id, card_number,
+                    notification_id, community_code, card_number,
                 )
                 count = int(result.split()[-1])
                 if count == 0:
                     await connection.execute("DELETE FROM notifications WHERE id = $1", notification_id)
-                    raise LookupError("no active devices found for card_number")
+                    raise LookupError("no active devices found for community_code and card_number")
                 return notification_id, count
 
     async def claim_next(self) -> QueuedNotification | None:

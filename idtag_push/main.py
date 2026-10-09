@@ -105,7 +105,10 @@ async def health(request: Request) -> dict[str, str]:
 @app.post("/v1/devices", response_model=DeviceRegistrationResponse, dependencies=[Depends(require_api_key)])
 async def register_device(payload: DeviceRegistration, request: Request) -> DeviceRegistrationResponse:
     device_id = await request.app.state.repository.register_device(
-        payload.card_number, payload.platform, payload.push_token
+        payload.community_code,
+        payload.card_number,
+        payload.platform,
+        payload.push_token,
     )
     return DeviceRegistrationResponse(device_id=device_id)
 
@@ -120,7 +123,11 @@ async def unregister_device(payload: DeviceUnregister, request: Request) -> dict
 async def enqueue_push(payload: PushRequest, request: Request) -> PushResponse:
     try:
         notification_id, count = await request.app.state.repository.enqueue(
-            payload.card_number, payload.title, payload.body, payload.data
+            payload.community_code,
+            payload.card_number,
+            payload.title,
+            payload.body,
+            payload.data,
         )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

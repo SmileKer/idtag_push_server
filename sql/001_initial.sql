@@ -2,6 +2,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 CREATE TABLE IF NOT EXISTS devices (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    community_code VARCHAR(64) NOT NULL,
     card_number VARCHAR(128) NOT NULL,
     platform VARCHAR(16) NOT NULL CHECK (platform IN ('ios', 'android')),
     push_token TEXT NOT NULL,
@@ -11,10 +12,16 @@ CREATE TABLE IF NOT EXISTS devices (
     last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (platform, push_token)
 );
-CREATE INDEX IF NOT EXISTS idx_devices_card_active ON devices (card_number) WHERE active;
+ALTER TABLE devices ADD COLUMN IF NOT EXISTS community_code VARCHAR(64);
+UPDATE devices SET community_code = 'LEGACY' WHERE community_code IS NULL;
+ALTER TABLE devices ALTER COLUMN community_code SET NOT NULL;
+DROP INDEX IF EXISTS idx_devices_card_active;
+CREATE INDEX IF NOT EXISTS idx_devices_community_card_active
+    ON devices (community_code, card_number) WHERE active;
 
 CREATE TABLE IF NOT EXISTS notifications (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    community_code VARCHAR(64) NOT NULL,
     card_number VARCHAR(128) NOT NULL,
     title VARCHAR(200) NOT NULL,
     body TEXT NOT NULL,
@@ -26,6 +33,9 @@ CREATE TABLE IF NOT EXISTS notifications (
     locked_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS community_code VARCHAR(64);
+UPDATE notifications SET community_code = 'LEGACY' WHERE community_code IS NULL;
+ALTER TABLE notifications ALTER COLUMN community_code SET NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_notifications_queue
     ON notifications (next_attempt_at, created_at) WHERE status = 'pending';
 

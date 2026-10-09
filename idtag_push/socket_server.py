@@ -47,7 +47,11 @@ class SocketServer:
                         await self._reply(writer, {"ok": False, "error": "unauthorized"})
                         continue
                     notification_id, count = await self.enqueue(
-                        request.card_number, request.title, request.body, request.data
+                        request.community_code,
+                        request.card_number,
+                        request.title,
+                        request.body,
+                        request.data,
                     )
                     await self._reply(
                         writer,
