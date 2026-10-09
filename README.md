@@ -4,8 +4,8 @@ Python service for registering IDTag mobile devices and delivering community-and
 
 ## Architecture
 
-- The Flutter app registers its resident card number, platform, and current push token over the HTTP API.
-- An internal system submits a title, body, resident card number, and optional data through a newline-delimited JSON TCP socket. An authenticated HTTP endpoint is also available.
+- The Flutter app registers its community code, resident card number, platform, and current push token over the HTTP API.
+- An internal system submits a title, body, community code, resident card number, and optional data through a newline-delimited JSON TCP socket. An authenticated HTTP endpoint is also available.
 - PostgreSQL stores active devices, queued notifications, and per-device delivery state.
 - One background worker sends each delivery through APNs or FCM.
 - A provider-accepted delivery is marked complete. A token reported as unregistered or invalid is deleted from `devices`.
@@ -74,7 +74,7 @@ at the outer firewall whenever possible.
 Double-click `開啟推播測試工具.command`. The launcher opens a local browser UI
 at `http://127.0.0.1:8765`. The UI sends directly to the production TCP endpoint
 at `211.23.22.158:7002`.
-Enter a card number, notification title, and message, and click `傳送推播`.
+Enter a community code, card number, notification title, and message, and click `傳送推播`.
 
 The local `.push_test_ui.json` stores the socket settings with mode `0600` and
 is ignored by Git. The UI sends through the socket service; it does not contain
@@ -157,5 +157,10 @@ Do not embed the server's privileged internal socket secret in the mobile app. T
 
 ## Development log
 
-- 2026-10-09: Designed the HTTP and TCP interfaces, PostgreSQL queue schema, per-device fan-out, provider adapters, retry behavior, provider-invalid token cleanup, dry-run mode, tests, and Ubuntu systemd unit.
-- 2026-10-09: Reviewed the existing Flutter application. It currently has login/card handling but no Firebase Messaging dependencies or push-token registration flow.
+- 2026-10-09: Reviewed the legacy Flutter login and BLE beacon flow, then removed the original backend approval dependency. Resident setup now validates the daily engineering password locally, saves the card permanently, starts beacon broadcasting by default, and allows only beacon start/stop after binding.
+- 2026-10-09: Integrated Firebase Cloud Messaging with Android and iOS, including permission handling, foreground notifications, token refresh, background handling, Android notification icon/channel setup, and automatic server registration. Firebase credentials remain outside Git.
+- 2026-10-09: Built the Python push service with authenticated HTTP and TCP interfaces, PostgreSQL queueing, per-device fan-out, FCM delivery, invalid-token cleanup, exponential retry, tests, and a systemd service.
+- 2026-10-09: Deployed the service to Ubuntu VM `172.10.1.51`. Established public ports `7002` for push submission, `7003` for SSH administration, and `7004` for App registration and health checks through `211.23.22.158`.
+- 2026-10-09: Added the local browser-based push test tool and engineering handover/system architecture documents. Verified Android installation, BLE beacon switching, device registration, and end-to-end Firebase submission.
+- 2026-10-09: Changed routing from card-only to the composite `community_code + card_number` key across the Flutter App, HTTP API, TCP protocol, test tool, PostgreSQL schema, indexes, and documentation. Existing device rows migrate safely to the `LEGACY` community.
+- 2026-10-09: Released Android App `1.1.0+5`, deployed the composite-routing migration to production, backed up the previous application and database, and verified all public ports plus the external health endpoint. Production migration retained three existing device registrations; stale Firebase tokens continue to be removed automatically when rejected by FCM.
