@@ -1,0 +1,7 @@
+fastapi==0.115.12
+uvicorn[standard]==0.34.2
+asyncpg==0.30.0
+httpx[http2]==0.28.1
+PyJWT[crypto]==2.10.1
+google-auth[requests]==2.40.1
+pydantic-settings==2.9.1

@@ -1,0 +1,11 @@
+.env
+.DS_Store
+.venv/
+__pycache__/
+.pytest_cache/
+*.py[cod]
+*.log
+credentials/
+*-firebase-adminsdk-*.json
+*.p8
+.push_test_ui.json

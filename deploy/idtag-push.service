@@ -1,0 +1,22 @@
+[Unit]
+Description=IDTag Push Service
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=idtagpush
+Group=idtagpush
+WorkingDirectory=/opt/idtag-push
+EnvironmentFile=/etc/idtag-push.env
+ExecStart=/opt/idtag-push/.venv/bin/python /opt/idtag-push/run.py
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/idtag-push
+
+[Install]
+WantedBy=multi-user.target
